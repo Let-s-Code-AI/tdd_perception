@@ -34,3 +34,5 @@ mlruns/
 .vscode/
 .DS_Store
 Thumbs.db
+
+output/
