@@ -15,18 +15,15 @@ etykiety zbioru (bez pseudo-etykiet). Trzy warianty:
 
 import argparse
 import json
-import sys
 import time
 from pathlib import Path
+from typing import Any
 
 import cv2
 import numpy as np
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
-from envfile import load_env  # noqa: E402
-
-from perception.detect import MODEL_ID, filter_detections  # noqa: E402
+from perception.boxes import iou_matrix
+from perception.detect import MODEL_ID, filter_detections
 
 AUG_MARK = "_aug_out_"
 # klasa zbioru -> klasa COCO (None = DETR jej nie zna)
@@ -76,19 +73,19 @@ def light_color(img: np.ndarray, box: np.ndarray) -> str:
     return "Green-Traffic-Light" if green.sum() > red.sum() else "Red-Traffic-Light"
 
 
-def iou_matrix(a: np.ndarray, b: np.ndarray) -> np.ndarray:
-    ix1 = np.maximum(a[:, None, 0], b[None, :, 0])
-    iy1 = np.maximum(a[:, None, 1], b[None, :, 1])
-    ix2 = np.minimum(a[:, None, 2], b[None, :, 2])
-    iy2 = np.minimum(a[:, None, 3], b[None, :, 3])
-    inter = np.clip(ix2 - ix1, 0, None) * np.clip(iy2 - iy1, 0, None)
-    area = lambda x: (x[:, 2] - x[:, 0]) * (x[:, 3] - x[:, 1])  # noqa: E731
-    return inter / (area(a)[:, None] + area(b)[None, :] - inter + 1e-9)
+Pred = tuple[np.ndarray, np.ndarray, np.ndarray]
+GT = tuple[np.ndarray, np.ndarray]
 
 
-def prf(preds, gts, classes, thr, iou_thr=0.5):
+def prf(
+    preds: list[Pred],
+    gts: list[GT],
+    classes: list[int],
+    thr: float,
+    iou_thr: float = 0.5,
+) -> dict[int, dict[str, float]]:
     """Precision / recall / F1 per klasa przy progu pewności thr (zachłanne dopasowanie po score)."""
-    out = {}
+    out: dict[int, dict[str, float]] = {}
     for c in classes:
         tp = fp = fn = 0
         for p, g in zip(preds, gts, strict=True):
@@ -122,7 +119,7 @@ def prf(preds, gts, classes, thr, iou_thr=0.5):
     return out
 
 
-def map_metrics(preds, gts, n_classes):
+def map_metrics(preds: list[Pred], gts: list[GT], n_classes: int) -> dict[str, Any]:
     import torch
     from torchmetrics.detection import MeanAveragePrecision
 
@@ -165,6 +162,7 @@ def main() -> int:
 
     import torch
     import yaml
+    from envfile import load_env
     from PIL import Image
     from transformers import DetrForObjectDetection, DetrImageProcessor
 
@@ -206,9 +204,7 @@ def main() -> int:
         gts.append(read_gt(args.data / args.split / "labels" / (path.stem + ".txt"), w, h))
         with torch.no_grad():
             inp = proc(images=img, return_tensors="pt").to(device)
-            res = proc.post_process_object_detection(
-                model(**inp), threshold=0.05, target_sizes=torch.tensor([[h, w]])
-            )[0]
+            res = proc.post_process_object_detection(model(**inp), threshold=0.05, target_sizes=[(h, w)])[0]
         raw.append((res["boxes"].cpu().numpy(), res["scores"].cpu().numpy(), res["labels"].cpu().numpy()))
         shapes.append((h, w))
         pics.append(img if len(imgs) <= 1200 else None)
@@ -216,11 +212,19 @@ def main() -> int:
             print(f"  {n}/{len(imgs)}  ({(time.time() - t0) / n:.2f}s/obraz)", flush=True)
     dt = (time.time() - t0) / len(imgs)
 
-    def to_ds(b, s, l, shape, img, color):  # noqa: E741
+    def to_ds(
+        b: np.ndarray,
+        s: np.ndarray,
+        l: np.ndarray,  # noqa: E741
+        shape: tuple[int, int],
+        img: np.ndarray | None,
+        color: bool,
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         keep = np.array([int(x) in road_ids for x in l], dtype=bool)
         b, s, l = b[keep], s[keep], l[keep]  # noqa: E741
         ds = np.array([coco_to_ds[int(x)] for x in l], dtype=int)
         if color and len(b):
+            assert img is not None, "wariant C wymaga obrazu (len(imgs) <= 1200) do odczytu koloru światła"
             for k in np.where(ds == idx[LIGHTS[0]])[0]:
                 ds[k] = idx[light_color(img, b[k])]
         return b, s, ds
@@ -228,10 +232,10 @@ def main() -> int:
     variants = {}
     for key, filt, color in (("A", False, False), ("B", True, False), ("C", True, True)):
         preds = []
-        for (b, s, l), shape, img in zip(raw, shapes, pics, strict=True):  # noqa: E741
+        for (b, s, l), shape, pic in zip(raw, shapes, pics, strict=True):  # noqa: E741
             if filt:
                 b, s, l = filter_detections(b, s, l, shape, road_ids, nms_iou=0.7)  # noqa: E741
-            preds.append(to_ds(b, s, l, shape, img, color))
+            preds.append(to_ds(b, s, l, shape, pic, color))
         if color:
             p_eval, g_eval, classes, cnames = preds, gts, [idx[n] for n in names], names
         else:
