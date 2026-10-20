@@ -1,11 +1,15 @@
-"""Ewaluacja bazowego DETR-a (facebook/detr-resnet-50, bez dotrenowania) na walidacji polskiego zbioru.
+"""Ewaluacja bazowego DETR-a (facebook/detr-resnet-50, bez dotrenowania) na walidacji
+polskiego zbioru.
 
-Model zna tylko klasy COCO, więc klasy zbioru mapujemy na najbliższe klasy COCO (--map), a resztę
-(znaki zakazu, ostrzegawcze, ograniczenia prędkości, przejścia) zostawiamy bez odpowiednika. GT to wyłącznie
-etykiety zbioru (bez pseudo-etykiet). Trzy warianty:
+Model zna tylko klasy COCO, więc klasy zbioru mapujemy na najbliższe klasy COCO
+(--map), a resztę (znaki zakazu, ostrzegawcze, ograniczenia prędkości, przejścia)
+zostawiamy bez odpowiednika. GT to wyłącznie etykiety zbioru (bez pseudo-etykiet).
+Trzy warianty:
 
-  A  samo mapowanie klas (światła czerwone i zielone scalone w jedną klasę Traffic-Light)
-  B  A + filtr domenowy z perception.detect.filter_detections (boksy-olbrzymy, maska maski, NMS)
+  A  samo mapowanie klas (światła czerwone i zielone scalone w jedną klasę
+     Traffic-Light)
+  B  A + filtr domenowy z perception.detect.filter_detections (boksy-olbrzymy,
+     maska maski, NMS)
   C  B + kolor światła z HSV wycinka (Red / Green zamiast jednej klasy)
 
   python scripts/fetch_val.py                       # najpierw dane (HF_TOKEN z .env)
@@ -60,7 +64,8 @@ def read_gt(label: Path, w: int, h: int) -> tuple[np.ndarray, np.ndarray]:
 
 
 def light_color(img: np.ndarray, box: np.ndarray) -> str:
-    """Czerwone czy zielone światło: więcej jasnych, nasyconych pikseli odpowiedniego odcienia."""
+    """Czerwone czy zielone światło: więcej jasnych, nasyconych pikseli odpowiedniego
+    odcienia."""
     x1, y1, x2, y2 = (int(round(v)) for v in box)
     crop = img[max(y1, 0) : max(y2, 1), max(x1, 0) : max(x2, 1)]
     if crop.size == 0:
@@ -84,7 +89,8 @@ def prf(
     thr: float,
     iou_thr: float = 0.5,
 ) -> dict[int, dict[str, float]]:
-    """Precision / recall / F1 per klasa przy progu pewności thr (zachłanne dopasowanie po score)."""
+    """Precision / recall / F1 per klasa przy progu pewności thr (zachłanne
+    dopasowanie po score)."""
     out: dict[int, dict[str, float]] = {}
     for c in classes:
         tp = fp = fn = 0
@@ -202,7 +208,11 @@ def main() -> int:
 
     device = args.device or pick_device()
     proc = DetrImageProcessor.from_pretrained(args.model)
-    model = DetrForObjectDetection.from_pretrained(args.model, attn_implementation="eager").to(device).eval()  # type: ignore[arg-type]
+    model = (
+        DetrForObjectDetection.from_pretrained(args.model, attn_implementation="eager")
+        .to(device)
+        .eval()
+    )  # type: ignore[arg-type]
     id2label = {int(i): str(n) for i, n in model.config.id2label.items()}
     coco2idx = {n: i for i, n in id2label.items()}
     # klasa COCO -> klasa zbioru (dla wariantu C światła rozstrzyga kolor)
@@ -254,9 +264,9 @@ def main() -> int:
         b, s, l = b[keep], s[keep], l[keep]  # noqa: E741
         ds = np.array([coco_to_ds[int(x)] for x in l], dtype=int)
         if color and len(b):
-            assert (
-                img is not None
-            ), "wariant C wymaga obrazu (len(imgs) <= 1200) do odczytu koloru światła"
+            assert img is not None, (
+                "wariant C wymaga obrazu (len(imgs) <= 1200) do odczytu koloru światła"
+            )
             for k in np.where(ds == idx[LIGHTS[0]])[0]:
                 ds[k] = idx[light_color(img, b[k])]
         return b, s, ds
@@ -301,11 +311,13 @@ def main() -> int:
         m["micro_recall_all"] = tp / (tp + fn_all) if tp + fn_all else 0.0
         variants[key] = m
         print(
-            f"\n== Wariant {key}: mAP {m['map']:.3f}  AP50 {m['map50']:.3f}  mAR100 {m['mar100']:.3f}"
+            f"\n== Wariant {key}: mAP {m['map']:.3f}  AP50 {m['map50']:.3f}"
+            f"  mAR100 {m['mar100']:.3f}"
         )
         for n, v in m["per_class"].items():
             print(
-                f"  {n:<22} AP {v['ap']:.3f}  P {v['precision']:.2f}  R {v['recall']:.2f}  GT {v['n_gt']}"
+                f"  {n:<22} AP {v['ap']:.3f}  P {v['precision']:.2f}"
+                f"  R {v['recall']:.2f}  GT {v['n_gt']}"
             )
 
     out = {

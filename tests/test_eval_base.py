@@ -131,6 +131,8 @@ def test_prf_evaluates_classes_independently():
 
 
 def test_map_metrics_perfect_match():
+    pytest.importorskip("torch")
+    pytest.importorskip("torchmetrics")
     boxes = np.array([[0, 0, 10, 10], [20, 20, 30, 30]], dtype=float)
     preds = [(boxes, np.array([0.9, 0.8]), np.array([0, 1]))]
     gts = [(boxes, np.array([0, 1]))]

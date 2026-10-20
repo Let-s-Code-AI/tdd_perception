@@ -2,11 +2,11 @@ import subprocess
 from pathlib import Path
 
 import cv2
-import imageio_ffmpeg
 import numpy as np
 import pytest
 
 pytest.importorskip("gradio")
+imageio_ffmpeg = pytest.importorskip("imageio_ffmpeg")
 
 from perception.app import _write_browser_video  # noqa: E402
 

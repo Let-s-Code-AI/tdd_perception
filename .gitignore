@@ -20,9 +20,11 @@ site/
 .pytest_cache/
 .coverage
 .coverage.*
+coverage.xml
 htmlcov/
 .mypy_cache/
 .ruff_cache/
+metrics.json
 
 # Model and experiment artifacts
 .cache/
