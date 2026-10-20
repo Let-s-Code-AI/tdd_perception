@@ -22,7 +22,7 @@ ml = [
     "pillow>=10",
     "timm>=1.0",
 ]
-ui = ["gradio>=5"]
+ui = ["gradio>=5", "imageio-ffmpeg>=0.6"]
 label = ["streamlit>=1.40", "streamlit-image-coordinates>=0.2"]
 train = [
     "torchmetrics>=1.4",

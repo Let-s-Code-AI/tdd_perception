@@ -1,11 +1,9 @@
 import argparse
-import shutil
 import subprocess
 import tempfile
 from functools import lru_cache
 from pathlib import Path
 
-import cv2
 import gradio as gr
 import numpy as np
 
@@ -26,28 +24,41 @@ def _models(device: str | None, use_depth: bool):
     return Detector(device=device), (DepthEstimator(device=device) if use_depth else None)
 
 
+def _ffmpeg_path() -> str:
+    """Zwraca systemowy lub dostarczony przez zależność FFmpeg."""
+    import shutil
+
+    if path := shutil.which("ffmpeg"):
+        return path
+
+    import imageio_ffmpeg
+
+    return imageio_ffmpeg.get_ffmpeg_exe()
+
+
 def _write_browser_video(path: Path, frames: list[np.ndarray], fps: float) -> None:
-    """Zapisuje mp4 odtwarzalny w przeglądarce (H.264 przez ffmpeg), a bez ffmpeg mp4v."""
+    """Zapisuje H.264/yuv420p, które obsługują wszystkie docelowe przeglądarki."""
     h, w = frames[0].shape[:2]
-    if shutil.which("ffmpeg"):
-        cmd = [
-            "ffmpeg", "-y", "-loglevel", "error",
-            "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{w}x{h}", "-r", str(fps), "-i", "-",
-            "-vf", "pad=ceil(iw/2)*2:ceil(ih/2)*2",  # yuv420p wymaga parzystych wymiarów
-            "-c:v", "libx264", "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(path),
-        ]  # fmt: skip
-        proc = subprocess.Popen(cmd, stdin=subprocess.PIPE)
+    cmd = [
+        _ffmpeg_path(), "-y", "-loglevel", "error",
+        "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{w}x{h}", "-r", str(fps), "-i", "-",
+        "-vf", "pad=ceil(iw/2)*2:ceil(ih/2)*2",  # yuv420p wymaga parzystych wymiarów
+        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(path),
+    ]  # fmt: skip
+    proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
+    try:
         stdin = proc.stdin
         assert stdin is not None  # stdin=PIPE gwarantuje strumień
         for f in frames:
             stdin.write(np.ascontiguousarray(f).tobytes())
         stdin.close()
-        if proc.wait() == 0:
-            return
-    writer = cv2.VideoWriter(str(path), cv2.VideoWriter.fourcc(*"mp4v"), fps, (w, h))
-    for f in frames:
-        writer.write(cv2.cvtColor(f, cv2.COLOR_RGB2BGR))
-    writer.release()
+    except BrokenPipeError:
+        pass
+
+    stderr = proc.stderr.read() if proc.stderr is not None else b""
+    if proc.wait() != 0:
+        message = stderr.decode(errors="replace").strip()
+        raise RuntimeError(f"Nie udało się zakodować wideo H.264: {message}")
 
 
 def process(
