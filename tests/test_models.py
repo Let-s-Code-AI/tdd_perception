@@ -38,7 +38,9 @@ def test_detector_output_contract(detector, frame):
     boxes, scores, labels = detector(frame, thr=0.5)
     assert boxes.ndim == 2 and boxes.shape[1] == 4
     assert len(boxes) == len(scores) == len(labels)
-    assert len(boxes) >= 1, "na klatce z drogą powinno być przynajmniej jedno auto/osoba"
+    assert (
+        len(boxes) >= 1
+    ), "na klatce z drogą powinno być przynajmniej jedno auto/osoba"
     assert ((scores >= 0.5) & (scores <= 1)).all()
     assert {detector.id2label[int(lab)] for lab in labels} <= ROAD
     assert (boxes[:, 0] < boxes[:, 2]).all() and (boxes[:, 1] < boxes[:, 3]).all()
@@ -50,5 +52,7 @@ def test_detector_output_contract(detector, frame):
 def test_depth_output_contract(depth_model, frame):
     d = depth_model(frame)
     assert d.shape == frame.shape[:2]
-    assert d.min() == pytest.approx(0.0, abs=1e-6) and d.max() == pytest.approx(1.0, abs=1e-6)
+    assert d.min() == pytest.approx(0.0, abs=1e-6) and d.max() == pytest.approx(
+        1.0, abs=1e-6
+    )
     assert np.isfinite(d).all()

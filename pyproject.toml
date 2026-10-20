@@ -63,7 +63,7 @@ url = "https://download.pytorch.org/whl/cpu"
 explicit = true
 
 [tool.ruff]
-line-length = 110
+line-length = 88
 extend-exclude = ["*.ipynb", "build_notebook.py"]
 target-version = "py311"
 

@@ -6,9 +6,11 @@ MODEL_ID = "depth-anything/Depth-Anything-V2-Small-hf"
 
 
 def near_score(depth: np.ndarray, box: np.ndarray) -> float | None:
-    """Bliskość obiektu = mediana głębi w dolnej połowie skrzynki (stopy/zderzak, mniej tła).
+    """Bliskość obiektu = mediana głębi w dolnej połowie skrzynki (stopy/zderzak,
+    mniej tła).
 
-    Skrzynka jest przycinana do obrazu. Zwraca None, gdy po przycięciu nic nie zostaje.
+    Skrzynka jest przycinana do obrazu. Zwraca None, gdy po przycięciu nic nie
+    zostaje.
     """
     height, width = depth.shape
     x1, y1 = max(int(box[0]), 0), max(int(box[1]), 0)
@@ -24,10 +26,14 @@ class DepthEstimator:
 
         from perception.detect import pick_device
 
-        self.pipe = pipeline("depth-estimation", model=model_id, device=device or pick_device())
+        self.pipe = pipeline(
+            "depth-estimation", model=model_id, device=device or pick_device()
+        )
 
     def __call__(self, img: np.ndarray) -> np.ndarray:
-        """img: RGB uint8. Zwraca mapę (H, W) w 0..1, większe = bliżej (głębia WZGLĘDNA)."""
+        """img: RGB uint8. Zwraca mapę (H, W) w 0..1, większe = bliżej
+        (głębia WZGLĘDNA).
+        """
         import torch
         from PIL import Image
 

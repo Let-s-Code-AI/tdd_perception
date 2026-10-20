@@ -97,7 +97,11 @@ def prf(
             if len(pb) and len(gb):
                 iou = iou_matrix(pb, gb)
                 for i in np.argsort(-ps):
-                    j = int(np.argmax(np.where([k in used for k in range(len(gb))], -1, iou[i])))
+                    j = int(
+                        np.argmax(
+                            np.where([k in used for k in range(len(gb))], -1, iou[i])
+                        )
+                    )
                     if iou[i, j] >= iou_thr and j not in used:
                         used.add(j)
                         tp += 1
@@ -134,7 +138,10 @@ def map_metrics(preds: list[Pred], gts: list[GT], n_classes: int) -> dict[str, A
             }
             for b, s, lab in preds
         ],
-        [{"boxes": t(b, dtype=torch.float32).reshape(-1, 4), "labels": t(lab)} for b, lab in gts],
+        [
+            {"boxes": t(b, dtype=torch.float32).reshape(-1, 4), "labels": t(lab)}
+            for b, lab in gts
+        ],
     )
     r = m.compute()
     classes = r["classes"].tolist()
@@ -149,14 +156,20 @@ def map_metrics(preds: list[Pred], gts: list[GT], n_classes: int) -> dict[str, A
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     ap.add_argument("--data", type=Path, default=Path("data/polish-traffic-12k"))
     ap.add_argument("--split", default="valid")
     ap.add_argument("--model", default=MODEL_ID)
     ap.add_argument("--device")
-    ap.add_argument("--thr", type=float, default=0.5, help="próg pewności dla precision/recall")
+    ap.add_argument(
+        "--thr", type=float, default=0.5, help="próg pewności dla precision/recall"
+    )
     ap.add_argument("--limit", type=int)
-    ap.add_argument("--no-aug", action="store_true", help="pomiń kopie augmentowane (_aug_out_)")
+    ap.add_argument(
+        "--no-aug", action="store_true", help="pomiń kopie augmentowane (_aug_out_)"
+    )
     ap.add_argument("--json", type=Path)
     args = ap.parse_args()
 
@@ -171,7 +184,9 @@ def main() -> int:
     load_env()  # HF_TOKEN z .env (wagi / ewentualnie prywatny zbiór)
     names = yaml.safe_load((args.data / "data.yaml").read_text())["names"]
     idx = {n: i for i, n in enumerate(names)}
-    merged = [n for n in names if n not in LIGHTS] + ["Traffic-Light"]  # klasy wariantów A i B
+    merged = [n for n in names if n not in LIGHTS] + [
+        "Traffic-Light"
+    ]  # klasy wariantów A i B
     midx = {n: i for i, n in enumerate(merged)}
     to_merged = np.array([midx["Traffic-Light" if n in LIGHTS else n] for n in names])
 
@@ -194,22 +209,37 @@ def main() -> int:
     coco_to_ds = {coco2idx[v]: idx[k] for k, v in COCO_MAP.items() if k not in LIGHTS}
     coco_to_ds[coco2idx["traffic light"]] = idx[LIGHTS[0]]
     road_ids = set(coco_to_ds)
-    print(f"{len(imgs)} obrazów z {args.data / args.split}, urządzenie {device}", flush=True)
+    print(
+        f"{len(imgs)} obrazów z {args.data / args.split}, urządzenie {device}",
+        flush=True,
+    )
 
     raw, gts, shapes, pics = [], [], [], []
     t0 = time.time()
     for n, path in enumerate(imgs, 1):
         img = np.array(Image.open(path).convert("RGB"))
         h, w = img.shape[:2]
-        gts.append(read_gt(args.data / args.split / "labels" / (path.stem + ".txt"), w, h))
+        gts.append(
+            read_gt(args.data / args.split / "labels" / (path.stem + ".txt"), w, h)
+        )
         with torch.no_grad():
             inp = proc(images=img, return_tensors="pt").to(device)
-            res = proc.post_process_object_detection(model(**inp), threshold=0.05, target_sizes=[(h, w)])[0]
-        raw.append((res["boxes"].cpu().numpy(), res["scores"].cpu().numpy(), res["labels"].cpu().numpy()))
+            res = proc.post_process_object_detection(
+                model(**inp), threshold=0.05, target_sizes=[(h, w)]
+            )[0]
+        raw.append(
+            (
+                res["boxes"].cpu().numpy(),
+                res["scores"].cpu().numpy(),
+                res["labels"].cpu().numpy(),
+            )
+        )
         shapes.append((h, w))
         pics.append(img if len(imgs) <= 1200 else None)
         if n % 100 == 0:
-            print(f"  {n}/{len(imgs)}  ({(time.time() - t0) / n:.2f}s/obraz)", flush=True)
+            print(
+                f"  {n}/{len(imgs)}  ({(time.time() - t0) / n:.2f}s/obraz)", flush=True
+            )
     dt = (time.time() - t0) / len(imgs)
 
     def to_ds(
@@ -224,17 +254,25 @@ def main() -> int:
         b, s, l = b[keep], s[keep], l[keep]  # noqa: E741
         ds = np.array([coco_to_ds[int(x)] for x in l], dtype=int)
         if color and len(b):
-            assert img is not None, "wariant C wymaga obrazu (len(imgs) <= 1200) do odczytu koloru światła"
+            assert (
+                img is not None
+            ), "wariant C wymaga obrazu (len(imgs) <= 1200) do odczytu koloru światła"
             for k in np.where(ds == idx[LIGHTS[0]])[0]:
                 ds[k] = idx[light_color(img, b[k])]
         return b, s, ds
 
     variants = {}
-    for key, filt, color in (("A", False, False), ("B", True, False), ("C", True, True)):
+    for key, filt, color in (
+        ("A", False, False),
+        ("B", True, False),
+        ("C", True, True),
+    ):
         preds = []
         for (b, s, l), shape, pic in zip(raw, shapes, pics, strict=True):  # noqa: E741
             if filt:
-                b, s, l = filter_detections(b, s, l, shape, road_ids, nms_iou=0.7)  # noqa: E741
+                b, s, l = filter_detections(  # noqa: E741
+                    b, s, l, shape, road_ids, nms_iou=0.7
+                )
             preds.append(to_ds(b, s, l, shape, pic, color))
         if color:
             p_eval, g_eval, classes, cnames = preds, gts, [idx[n] for n in names], names
@@ -246,20 +284,29 @@ def main() -> int:
         pr = prf(p_eval, g_eval, classes, args.thr)
         n_gt = {c: int(sum((g[1] == c).sum() for g in g_eval)) for c in classes}
         m["per_class"] = {
-            cnames[i]: {"ap": m["per_class_ap"][c], "n_gt": n_gt[c], **pr[c]} for i, c in enumerate(classes)
+            cnames[i]: {"ap": m["per_class_ap"][c], "n_gt": n_gt[c], **pr[c]}
+            for i, c in enumerate(classes)
         }
         del m["per_class_ap"]
         # metryki zbiorcze tylko po klasach, które DETR w ogóle zna
-        known = [cnames[i] for i, c in enumerate(classes) if cnames[i] in {"Traffic-Light", *COCO_MAP}]
+        known = [
+            cnames[i]
+            for i, c in enumerate(classes)
+            if cnames[i] in {"Traffic-Light", *COCO_MAP}
+        ]
         tp = sum(m["per_class"][n]["tp"] for n in known)
         fp = sum(m["per_class"][n]["fp"] for n in known)
         fn_all = sum(v["fn"] for v in m["per_class"].values())
         m["micro_precision_known"] = tp / (tp + fp) if tp + fp else 0.0
         m["micro_recall_all"] = tp / (tp + fn_all) if tp + fn_all else 0.0
         variants[key] = m
-        print(f"\n== Wariant {key}: mAP {m['map']:.3f}  AP50 {m['map50']:.3f}  mAR100 {m['mar100']:.3f}")
+        print(
+            f"\n== Wariant {key}: mAP {m['map']:.3f}  AP50 {m['map50']:.3f}  mAR100 {m['mar100']:.3f}"
+        )
         for n, v in m["per_class"].items():
-            print(f"  {n:<22} AP {v['ap']:.3f}  P {v['precision']:.2f}  R {v['recall']:.2f}  GT {v['n_gt']}")
+            print(
+                f"  {n:<22} AP {v['ap']:.3f}  P {v['precision']:.2f}  R {v['recall']:.2f}  GT {v['n_gt']}"
+            )
 
     out = {
         "model": args.model,

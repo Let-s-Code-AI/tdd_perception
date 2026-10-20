@@ -94,7 +94,9 @@ def test_low_score_detection_extends_existing_track():
     tr = ByteTrackLite(high=0.6, low=0.3)
     for f in range(6):
         tr.update(*det(moving_box(f), score=0.9))
-    out = tr.update(*det(moving_box(6), score=0.4))  # słaba detekcja, ale tor już istnieje
+    out = tr.update(
+        *det(moving_box(6), score=0.4)
+    )  # słaba detekcja, ale tor już istnieje
     assert [t.id for t in out] == [1]
 
 

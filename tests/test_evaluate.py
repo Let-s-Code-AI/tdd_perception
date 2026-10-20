@@ -11,7 +11,12 @@ THRESHOLDS = {
     "max_unique_tracks": 10,
     "max_ms_per_frame": 500,
 }
-GOOD = {"mean_detections": 3.0, "mean_track_length": 12.0, "unique_tracks": 6, "ms_per_frame": 200.0}
+GOOD = {
+    "mean_detections": 3.0,
+    "mean_track_length": 12.0,
+    "unique_tracks": 6,
+    "ms_per_frame": 200.0,
+}
 
 
 def test_good_metrics_pass():
@@ -37,7 +42,11 @@ def test_missing_threshold_is_ignored():
 def test_compute_metrics():
     box = np.zeros(4)
     res = RunResult(
-        records=[Record(0, 1, 3, box, None), Record(1, 1, 3, box, None), Record(1, 2, 3, box, None)],
+        records=[
+            Record(0, 1, 3, box, None),
+            Record(1, 1, 3, box, None),
+            Record(1, 2, 3, box, None),
+        ],
         detections_per_frame=[2, 4],
         seconds_per_frame=[0.1, 0.3],
     )

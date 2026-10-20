@@ -57,7 +57,14 @@ def test_prf_perfect_match_scores_one():
     preds = [(np.array([[0, 0, 10, 10]], dtype=float), np.array([0.9]), np.array([0]))]
     gts = [(np.array([[0, 0, 10, 10]], dtype=float), np.array([0]))]
     out = prf(preds, gts, classes=[0], thr=0.5)
-    assert out[0] == {"precision": 1.0, "recall": 1.0, "f1": 1.0, "tp": 1, "fp": 0, "fn": 0}
+    assert out[0] == {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "tp": 1,
+        "fp": 0,
+        "fn": 0,
+    }
 
 
 def test_prf_below_threshold_prediction_counts_as_missed_gt():
@@ -73,7 +80,14 @@ def test_prf_prediction_without_matching_gt_is_false_positive():
     preds = [(np.array([[0, 0, 10, 10]], dtype=float), np.array([0.9]), np.array([0]))]
     gts = [(np.zeros((0, 4)), np.zeros(0, dtype=int))]
     out = prf(preds, gts, classes=[0], thr=0.5)
-    assert out[0] == {"precision": 0.0, "recall": 0.0, "f1": 0.0, "tp": 0, "fp": 1, "fn": 0}
+    assert out[0] == {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "tp": 0,
+        "fp": 1,
+        "fn": 0,
+    }
 
 
 def test_prf_low_iou_counts_as_both_fp_and_fn():
@@ -108,7 +122,9 @@ def test_prf_evaluates_classes_independently():
             np.array([0, 1]),
         )
     ]
-    gts = [(np.array([[0, 0, 10, 10], [20, 20, 30, 30]], dtype=float), np.array([0, 1]))]
+    gts = [
+        (np.array([[0, 0, 10, 10], [20, 20, 30, 30]], dtype=float), np.array([0, 1]))
+    ]
     out = prf(preds, gts, classes=[0, 1], thr=0.5)
     assert out[0]["tp"] == 1 and out[0]["fp"] == 0
     assert out[1]["tp"] == 1 and out[1]["fp"] == 0

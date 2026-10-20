@@ -55,7 +55,9 @@ def test_frames_are_rgb_not_bgr(tmp_path: Path):
     writer = cv2.VideoWriter(str(path), cv2.VideoWriter.fourcc(*"MJPG"), FPS, (64, 64))
     for _ in range(3):
         writer.write(
-            np.dstack([np.zeros((64, 64)), np.zeros((64, 64)), np.full((64, 64), 255)]).astype(np.uint8)
+            np.dstack(
+                [np.zeros((64, 64)), np.zeros((64, 64)), np.full((64, 64), 255)]
+            ).astype(np.uint8)
         )
     writer.release()  # w BGR kanał 2 to czerwony
     frames, _ = load_frames(path, max_frames=1, stride=1, width=64)
@@ -63,8 +65,7 @@ def test_frames_are_rgb_not_bgr(tmp_path: Path):
     assert r > 200 and g < 60 and b < 60
 
 
-def test_fixture_clip_loads(  # prawdziwy plik z repo, tak jak go dostanie potok
-):
+def test_fixture_clip_loads():  # prawdziwy plik z repo, tak jak go dostanie potok
     frames, fps = load_frames(FIXTURE, max_frames=5, stride=1, width=320)
     assert len(frames) == 5
     assert fps > 0

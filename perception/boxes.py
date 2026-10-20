@@ -19,7 +19,9 @@ def iou_matrix(a: np.ndarray, b: np.ndarray) -> np.ndarray:
 
 
 def nms(boxes: np.ndarray, scores: np.ndarray, iou_thr: float) -> np.ndarray:
-    """Zwraca indeksy skrzynek do zachowania (od najwyższego score), jak torchvision.ops.nms."""
+    """Zwraca indeksy skrzynek do zachowania (od najwyższego score), jak
+    torchvision.ops.nms.
+    """
     order = np.argsort(-scores, kind="stable")
     keep: list[int] = []
     while len(order):

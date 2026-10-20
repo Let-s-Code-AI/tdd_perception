@@ -21,7 +21,9 @@ def _models(device: str | None, use_depth: bool):
     from perception.depth import DepthEstimator
     from perception.detect import Detector
 
-    return Detector(device=device), (DepthEstimator(device=device) if use_depth else None)
+    return Detector(device=device), (
+        DepthEstimator(device=device) if use_depth else None
+    )
 
 
 def _ffmpeg_path() -> str:
@@ -41,7 +43,8 @@ def _write_browser_video(path: Path, frames: list[np.ndarray], fps: float) -> No
     h, w = frames[0].shape[:2]
     cmd = [
         _ffmpeg_path(), "-y", "-loglevel", "error",
-        "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{w}x{h}", "-r", str(fps), "-i", "-",
+        "-f", "rawvideo", "-pix_fmt", "rgb24",
+        "-s", f"{w}x{h}", "-r", str(fps), "-i", "-",
         "-vf", "pad=ceil(iw/2)*2:ceil(ih/2)*2",  # yuv420p wymaga parzystych wymiarów
         "-c:v", "libx264", "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(path),
     ]  # fmt: skip
@@ -99,7 +102,9 @@ def process(
     progress(0.95, desc="Zapisuję wideo")
     out = Path(tempfile.mkdtemp()) / "wynik.mp4"
     _write_browser_video(
-        out, [draw(f, by_frame.get(i, []), detector.id2label) for i, f in enumerate(frames)], fps
+        out,
+        [draw(f, by_frame.get(i, []), detector.id2label) for i, f in enumerate(frames)],
+        fps,
     )
 
     rows = [
@@ -114,21 +119,30 @@ def process(
     ]
     ms = 1000 * float(np.median(res.seconds_per_frame))
     tracks = len({r.id for r in res.records})
-    summary = f"Klatek: {n}, unikalnych torów: {tracks}, mediana {ms:.0f} ms/klatkę ({detector.device})"
+    summary = (
+        f"Klatek: {n}, unikalnych torów: {tracks}, "
+        f"mediana {ms:.0f} ms/klatkę ({detector.device})"
+    )
     return str(out), summary, rows
 
 
 def build():
     with gr.Blocks(title="perception") as demo:
-        gr.Markdown("# perception: DETR → śledzenie → głębia\nWgraj film z dashcama (mp4).")
+        gr.Markdown(
+            "# perception: DETR → śledzenie → głębia\nWgraj film z dashcama (mp4)."
+        )
         with gr.Row():
             with gr.Column():
                 inp = gr.Video(label="Wejście (mp4)", sources=["upload"])
                 max_frames = gr.Slider(1, 600, value=60, step=1, label="Maks. klatek")
                 stride = gr.Slider(1, 15, value=4, step=1, label="Co N-ta klatka")
-                width = gr.Slider(320, 1920, value=960, step=32, label="Szerokość po przeskalowaniu")
+                width = gr.Slider(
+                    320, 1920, value=960, step=32, label="Szerokość po przeskalowaniu"
+                )
                 use_depth = gr.Checkbox(value=True, label="Estymacja głębi (near)")
-                device = gr.Dropdown(["auto", "cpu", "mps", "cuda"], value="auto", label="Urządzenie")
+                device = gr.Dropdown(
+                    ["auto", "cpu", "mps", "cuda"], value="auto", label="Urządzenie"
+                )
                 btn = gr.Button("Uruchom", variant="primary")
             with gr.Column():
                 out = gr.Video(label="Wynik")
@@ -146,11 +160,15 @@ def build():
 
 def main(argv: list[str] | None = None) -> None:
     ap = argparse.ArgumentParser(prog="perception-ui", description=__doc__)
-    ap.add_argument("--host", default="127.0.0.1", help="adres nasłuchu (w kontenerze: 0.0.0.0)")
+    ap.add_argument(
+        "--host", default="127.0.0.1", help="adres nasłuchu (w kontenerze: 0.0.0.0)"
+    )
     ap.add_argument("--port", type=int, default=7860)
     ap.add_argument("--share", action="store_true", help="publiczny link gradio.live")
     args = ap.parse_args(argv)
-    build().queue().launch(server_name=args.host, server_port=args.port, share=args.share)
+    build().queue().launch(
+        server_name=args.host, server_port=args.port, share=args.share
+    )
 
 
 if __name__ == "__main__":
