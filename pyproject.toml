@@ -97,4 +97,3 @@ source_paths = ["perception"]
 do_not_mutate = ["perception/app.py"]
 pytest_add_cli_args = ["-m", "not model"]
 also_copy = ["scripts"]
-process_isolation = "forkserver"
