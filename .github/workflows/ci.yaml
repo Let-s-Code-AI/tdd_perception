@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --frozen --group dev
+      - run: uv run ruff check perception scripts
+      - run: uv run ruff format --check perception scripts
+      - run: uv run mypy perception scripts
+      - run: uv run pytest -m "not model"
+      
+
+  model:
+    needs: quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-${{ hashFiles('perception/detect.py', 'perception/depth.py') }}
+      - run: uv sync --frozen --extra ml --group dev
+      - run: uv run pytest --cov --cov-report=term-missing --cov-report=xml
+      - uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage.xml
+          fail_ci_if_error: false
+      - name: Bramka jakości (metryki vs thresholds.json)
+        run: uv run python scripts/evaluate.py --device cpu
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: metrics
+          path: metrics.json
+          if-no-files-found: ignore
