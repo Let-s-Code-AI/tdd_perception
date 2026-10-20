@@ -35,7 +35,7 @@ jobs:
         with:
           enable-cache: true
       - run: uv sync --frozen --group dev
-      - run: uv run mutmut run --paths-to-mutate perception scripts
+      - run: uv run mutmut run
 
   model:
     needs: quality
