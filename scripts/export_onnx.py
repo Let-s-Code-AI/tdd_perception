@@ -31,7 +31,9 @@ def main() -> int:
     import onnxruntime as ort
     from transformers import DetrForObjectDetection
 
-    model = DetrForObjectDetection.from_pretrained(MODEL_ID, attn_implementation="eager").eval()
+    model = DetrForObjectDetection.from_pretrained(
+        MODEL_ID, attn_implementation="eager"
+    ).eval()
     wrapped = Wrapper(model).eval()
     dummy = torch.randn(1, 3, args.height, args.width)
 
@@ -53,7 +55,10 @@ def main() -> int:
     logits, boxes = sess.run(None, {"pixel_values": dummy.numpy()})
     d_logits = float(np.abs(logits - ref_logits.numpy()).max())
     d_boxes = float(np.abs(boxes - ref_boxes.numpy()).max())
-    print(f"max |onnx - torch|: logits={d_logits:.2e} boxes={d_boxes:.2e} (próg {args.atol})")
+    print(
+        f"max |onnx - torch|: logits={d_logits:.2e} boxes={d_boxes:.2e} "
+        f"(próg {args.atol})"
+    )
     if d_logits > args.atol or d_boxes > args.atol:
         print("BŁĄD: ONNX rozjeżdża się z PyTorchem", file=sys.stderr)
         return 1
