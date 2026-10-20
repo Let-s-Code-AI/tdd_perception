@@ -26,6 +26,17 @@ jobs:
       - run: uv run mypy perception scripts
       - run: uv run pytest -m "not model"
 
+  coverage:
+    needs: quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --frozen --group dev
+      - run: uv run pytest -m "not model" --cov --cov-report=term-missing
+
   model:
     needs: quality
     runs-on: ubuntu-latest

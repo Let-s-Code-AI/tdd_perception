@@ -38,3 +38,5 @@ mlruns/
 Thumbs.db
 
 output/
+
+mutants/

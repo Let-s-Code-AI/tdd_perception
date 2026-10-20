@@ -1,6 +1,6 @@
 [project]
 name = "perception"
-version = "0.2.1"
+version = "1.0.0"
 description = "Pipeline percepcji z dashcama: DETR, śledzenie, głębia"
 requires-python = ">=3.11"
 dependencies = [
@@ -42,6 +42,7 @@ dev = [
     "pytest-cov>=5",
     "ruff>=0.6",
     "mypy>=1.11",
+    "mutmut>=3.8.0",
 ]
 
 
@@ -89,3 +90,10 @@ show_missing = true
 skip_covered = false
 exclude_also = ["if __name__ == .__main__.:", "if TYPE_CHECKING:"]
 fail_under = 60
+
+
+[tool.mutmut]
+source_paths = ["perception"]
+do_not_mutate = ["perception/app.py"]
+pytest_add_cli_args = ["-m", "not model"]
+also_copy = ["scripts"]
